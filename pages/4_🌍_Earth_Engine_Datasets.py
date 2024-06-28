@@ -6,8 +6,8 @@ st.set_page_config(layout="wide")
 
 st.sidebar.info(
     """
-    - Web App URL: <https://streamlit.geemap.org>
-    - GitHub repository: <https://github.com/NINAnor/birdRisk>
+    - Web App URL: <https://birdrisk.streamlit.app>
+    - GitHub repository: <https://github.com/spretosg/birdRisk>
     """
 )
 
