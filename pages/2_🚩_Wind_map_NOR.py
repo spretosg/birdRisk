@@ -3,9 +3,8 @@ import geemap.foliumap as geemap
 import ee
 from datetime import datetime
 
-def ee_authenticate(token_name="EARTHENGINE_TOKEN"):
-    geemap.ee_initialize(token_name=token_name)
-    
+geemap.ee_initialize()
+
 st.set_page_config(layout="wide")
 
 st.sidebar.info(
