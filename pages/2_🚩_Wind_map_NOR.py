@@ -3,7 +3,13 @@ import geemap.foliumap as geemap
 import ee
 from datetime import datetime
 
-geemap.ee_initialize()
+#geemap.ee_initialize()
+EARTHENGINE_TOKEN = st.secrets["EARTHENGINE_TOKEN"]
+print(st.secrets["EARTHENGINE_TOKEN"])
+ 
+   
+geemap.ee_initialize(token_name=EARTHENGINE_TOKEN)
+print(f"Earth Engine authenticated successfully: {EARTHENGINE_TOKEN}")
 
 st.set_page_config(layout="wide")
 
@@ -74,7 +80,7 @@ def main():
 
     # Display the map in Streamlit
     st.write("Based on ERA5 daily aggregated mean")
-    Map.to_streamlit(height=500)
+    Map.to_streamlit(height=600)
 
 if __name__ == "__main__":
     main()
