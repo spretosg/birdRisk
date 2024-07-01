@@ -4,12 +4,9 @@ import ee
 from datetime import datetime
 
 #geemap.ee_initialize()
-EARTHENGINE_TOKEN = st.secrets["EARTHENGINE_TOKEN"]
-print(st.secrets["EARTHENGINE_TOKEN"])
- 
-   
-geemap.ee_initialize(token_name=EARTHENGINE_TOKEN)
-print(f"Earth Engine authenticated successfully: {EARTHENGINE_TOKEN}")
+
+def ee_authenticate(token_name="EARTHENGINE_TOKEN"):
+    geemap.ee_initialize(token_name=token_name)
 
 st.set_page_config(layout="wide")
 
