@@ -18,7 +18,8 @@ st.sidebar.title("Contact")
 st.sidebar.info(
     """
     Reto Spielhofer: <https://www.nina.no>
-     #VisAviS2024
+    Frank Hanssen
+    #VisAviS2024
     based on a repository of:
     Qiusheng Wu: [GitHub](https://github.com/giswqs) 
     """

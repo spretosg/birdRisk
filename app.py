@@ -3,7 +3,7 @@ import leafmap.foliumap as leafmap
 import geemap.foliumap as geemap
 import ee
 
-ee.Initialize()
+#ee.Initialize()
 
 st.sidebar.info(
     """

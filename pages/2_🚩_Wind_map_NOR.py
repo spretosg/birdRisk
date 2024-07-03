@@ -30,6 +30,7 @@ st.sidebar.info(
 
 #ADM0 geom for Norway
 def get_norway_geometry():
+    #geemap.Map()
     # Load the international boundaries dataset
     countries = ee.FeatureCollection('USDOS/LSIB_SIMPLE/2017')
     
