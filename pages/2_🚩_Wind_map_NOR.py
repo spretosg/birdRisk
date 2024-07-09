@@ -8,6 +8,7 @@ from datetime import datetime
 #def ee_authenticate(token_name="EARTHENGINE_TOKEN"):
 #    geemap.ee_initialize(token_name=token_name)
 #geemap.ee_initialize()
+Map = geemap.Map(center=[65, 15], zoom=4)
 
 st.set_page_config(layout="wide")
 
