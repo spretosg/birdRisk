@@ -41,8 +41,8 @@ def create_map(gdf):
 
 
 # Print results.
-st.write("### VisAviS radar stations")
-st.write("Stored on BQ")
+st.title("Radar stations")
+st.write("Test to connect from google cloud BigQuery")
 st.dataframe(df)
 gdf = create_geodataframe(df)
 

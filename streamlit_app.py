@@ -8,12 +8,7 @@ geemap.ee_initialize(token_name=st.secrets["EARTHENGINE_TOKEN"])
 
 st.set_page_config(layout="wide")
 
-st.sidebar.info(
-    """
-    - Web App URL: <https://streamlit.geemap.org>
-    - GitHub repository: <https://github.com/NINAnor/birdRisk>
-    """
-)
+
 
 st.sidebar.title("Contact")
 st.sidebar.info(
@@ -21,8 +16,6 @@ st.sidebar.info(
     Reto Spielhofer: <https://www.nina.no>
     Frank Hanssen
     #VisAviS2024
-    based on a repository of:
-    Qiusheng Wu: [GitHub](https://github.com/giswqs) 
     """
 )
 
@@ -30,25 +23,24 @@ st.title("birdRISK")
 
 st.markdown(
     """
-    The tool should be designed to support the planning and concession process for onshore and offshore wind farms. In particular, migration intensity (exposure), flight behavior (vulnerability) and probability of landing birds (risk) will be computed and visualized.
-
+    The tool should be designed to support the planning and concession process for onshore and offshore wind farms.
     """
 )
 
-st.info("Click on the left sidebar menu to navigate to the different apps.")
+st.info("Click on the left sidebar menu to navigate to the different sub topics.")
 
-st.subheader("Timelapse of Satellite Imagery")
+st.subheader("Different dimensions")
 st.markdown(
     """
-    Some placeholder stuff
+    In the visAvis project, different aspects of bird migration, such as migration intensity (exposure), flight behavior (vulnerability) and probability of landing birds (risk) will be computed and visualized. Finally a bird migration risk map is produced informing infrastructure planning and other activities.
 """
 )
 
 row1_col1, row1_col2 = st.columns(2)
 with row1_col1:
-    st.image("https://github.com/giswqs/data/raw/main/timelapse/spain.gif")
-    st.image("https://github.com/giswqs/data/raw/main/timelapse/las_vegas.gif")
+    st.image("data/img/migration.jpg", caption='Migration intensity')
+    st.image("data/img/stopover.jpg",caption='Stopover sites')
 
 with row1_col2:
-    st.image("https://github.com/giswqs/data/raw/main/timelapse/goes.gif")
-    st.image("https://github.com/giswqs/data/raw/main/timelapse/fire.gif")
+    st.image("data/img/behaviour.jpg", caption='Local flight behaviour')
+    st.image("data/img/vulnerability.jpg", caption='Vulnerability')

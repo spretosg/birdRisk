@@ -66,6 +66,7 @@ def get_mean_wind_speed(date):
 # Streamlit app
 def main():
     st.title("Mean Wind Speed Map for Norway")
+    st.write("Test to connect to earth engine spatial data set")
 
     # Date selector
     selected_date = st.date_input("Select a date", datetime.now().date())

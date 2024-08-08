@@ -143,7 +143,8 @@ def search_data():
 
 
 def app():
-    st.title("Earth Engine Data Catalog")
+    st.title("Local flight behaviour")
+    st.text("Test to connect to NINA radar DB and 3D pydeck")
 
     apps = ["Search Earth Engine Data Catalog",
             "National Land Cover Database (NLCD)"]
