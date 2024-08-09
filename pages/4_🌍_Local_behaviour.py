@@ -24,6 +24,7 @@ st.sidebar.info(
 
 
 cesium_token = st.secrets["cesium"]["access_token"]# Define your HTML and JavaScript content
+print(cesium_token)
 cesium_html = """
 <!DOCTYPE html>
 <html lang="en">
@@ -38,8 +39,7 @@ cesium_html = """
   <script>
     // Your access token can be found at: https://cesium.com/ion/tokens.
     // Replace `your_access_token` with your Cesium ion access token.
-
-    Cesium.Ion.defaultAccessToken = '{cesium_token}';
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhOGY0YWM3ZC01NGNjLTQ3NzgtOTFlMy05Y2UzY2QyOWJmYzgiLCJpZCI6MjMzNzYzLCJpYXQiOjE3MjMxODkxOTV9.TySNoEb3lKU_-tkv1qvIqkfSTyRyWaTUJZ_Zf50WfDQ';
 
     // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
     const viewer = new Cesium.Viewer('cesiumContainer', {
