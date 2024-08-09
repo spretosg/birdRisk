@@ -23,7 +23,7 @@ st.sidebar.info(
 
 
 
-cesium_token = st.secrets["cesium"]["access_token"]# Define your HTML and JavaScript content
+cesium_token = st.secrets["cesium"]["access_token"]
 print(cesium_token)
 cesium_html = """
 <!DOCTYPE html>
