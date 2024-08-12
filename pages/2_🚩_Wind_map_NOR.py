@@ -1,7 +1,7 @@
 import streamlit as st
 import geemap.foliumap as geemap
 import ee
-from datetime import datetime
+from datetime import datetime, timedelta
 
 #geemap.ee_initialize(token_name="EARTHENGINE_TOKEN")
 
@@ -69,7 +69,8 @@ def main():
     st.write("Test to connect to earth engine spatial data set")
 
     # Date selector
-    selected_date = st.date_input("Select a date", datetime.now().date())
+    d = datetime.today() - timedelta(days=8)
+    selected_date = st.date_input("Select a date", d)
     selected_date_str = selected_date.strftime('%Y-%m-%d')
 
     # Get the wind speed image

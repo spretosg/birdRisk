@@ -56,7 +56,7 @@ st.title('Interactive Heatmap Visualization')
 # Date selection
     # Date selector
 d = datetime.today() - timedelta(days=3)
-selected_date = st.date_input("Select a date", d)
+selected_date = st.date_input("Select a date (72h from current date)", d)
 year_sel = selected_date.year
 selected_date_str = selected_date.strftime('%Y%m%d')
 
