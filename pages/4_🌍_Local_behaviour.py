@@ -43,7 +43,9 @@ cesium_html = """
 
     // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
     const viewer = new Cesium.Viewer('cesiumContainer', {
-      terrainProvider: Cesium.createWorldTerrain()
+      //terrainProvider: Cesium.createWorldTerrain()
+      terrainProviderViewModels: Cesium.createDefaultTerrainProviderViewModels(),
+      selectedTerrainProviderViewModel: Cesium.createDefaultTerrainProviderViewModels()[0]
     });
     // some sample pts
     var positions = Cesium.Cartesian3.fromDegreesArrayHeights([
@@ -124,16 +126,16 @@ cesium_html = """
             }
         });
 
-    // Add Cesium OSM Buildings, a global 3D buildings layer.
-    //const buildingTileset = viewer.scene.primitives.add(Cesium.createOsmBuildings());
-    // Fly the camera to San Francisco at the given longitude, latitude, and height.
-    viewer.camera.flyTo({
-      destination : Cesium.Cartesian3.fromDegrees(6.5709541, 58.10856456, 100),
-      orientation : {
-        heading : Cesium.Math.toRadians(0.0),
-        pitch : Cesium.Math.toRadians(-15.0),
-      }
-    });
+
+    // Fly the camera to the path
+    //viewer.camera.flyTo({
+      //destination : Cesium.Cartesian3.fromDegrees(6.5709541, 58.10856456, 100),
+      //orientation : {
+        //heading : Cesium.Math.toRadians(0.0),
+        //pitch : Cesium.Math.toRadians(-15.0),
+      //}
+    //});
+    viewer.flyTo(lineString);
   </script>
  </div>
 </body>

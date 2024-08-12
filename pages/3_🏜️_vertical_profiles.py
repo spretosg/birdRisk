@@ -3,7 +3,8 @@ import pandas as pd
 import plotly.express as px
 import requests
 from io import StringIO
-from datetime import datetime
+from datetime import datetime, timedelta
+import plotly.graph_objs as go
 
 
 st.set_page_config(layout="wide")
@@ -43,9 +44,10 @@ def load_data(url):
     df = pd.read_csv(data)
     return df
 
+rad_stationID = 'nohur'
 # Base URL of the dataset
-base_url = 'https://aloftdata.s3-eu-west-1.amazonaws.com/baltrad/daily/bejab/2018/bejab_vpts_'
-base_url = 'https://aloftdata.s3-eu-west-1.amazonaws.com/baltrad/daily/bejab/'
+#base_url = 'https://aloftdata.s3-eu-west-1.amazonaws.com/baltrad/daily/bejab/2018/bejab_vpts_'
+base_url = 'https://aloftdata.s3-eu-west-1.amazonaws.com/baltrad/daily/'
 
 
 # Streamlit app
@@ -53,11 +55,12 @@ st.title('Interactive Heatmap Visualization')
 
 # Date selection
     # Date selector
-selected_date = st.date_input("Select a date", datetime.now().date())
+d = datetime.today() - timedelta(days=3)
+selected_date = st.date_input("Select a date", d)
 year_sel = selected_date.year
 selected_date_str = selected_date.strftime('%Y%m%d')
 
-data_url = f'{base_url}{year_sel}/bejab_vpts_{selected_date_str}.csv'
+data_url = f'{base_url}{rad_stationID}/{year_sel}/{rad_stationID}_vpts_{selected_date_str}.csv'
 
 # Load data
 st.write(f"Loading data from: {data_url}")
@@ -72,11 +75,19 @@ except Exception as e:
 st.write("Data preview:")
 st.write(df.head())
 
-fig = px.imshow(
-        df,
-       labels=dict(x="dd", y="height", color="dens"),
-        title=f'Heatmap for test'
-    )
+#df['DateStr'] = df['datetime'].strftime("%Y-%m-%dT%H:%M:%SZ")
+#new_df = df.pivot(index='height', columns='datetime')['dens'].fillna(0)
+df1 = df[['datetime', 'height','dens']]
+
+df1 = pd.DataFrame(df1)
+
+fig = go.Figure(data=go.Heatmap(
+        z=df1['dens'],
+        x=df1['datetime'],
+        y=df1['height'],
+        colorscale='Viridis'
+))
+
     
 st.plotly_chart(fig)
 
