@@ -6,6 +6,10 @@ from io import StringIO
 from datetime import datetime, timedelta
 import plotly.graph_objs as go
 import numpy as np
+from google.oauth2 import service_account
+from google.cloud import bigquery
+from astral.sun import sun
+from astral import Observer
 
 
 
@@ -39,6 +43,25 @@ Visualizing vertical profiles from ENRAM radar. Test the connection to AWS.
 )
 
 
+# Create API client.
+credentials = service_account.Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"]
+)
+client = bigquery.Client(credentials=credentials)
+
+# Perform query.
+# Uses st.cache_data to only rerun when the query changes or after 10 min.
+
+
+sql = """SELECT radar, latitude, longitude, elevation FROM `visavis-312202.wp4_dev.radar_sites` LIMIT 20"""
+df = client.query_and_wait(sql).to_dataframe()
+
+## station selection
+radar_stat = st.selectbox("Select a radar",df.radar)
+filtered_df = df[df['radar'] == radar_stat]
+observer = Observer(latitude=filtered_df.latitude, longitude=filtered_df.longitude, elevation=filtered_df.elevation)
+
+
 # Function to load data from a URL and return a DataFrame
 def load_data(url):
     response = requests.get(url)
@@ -46,7 +69,7 @@ def load_data(url):
     df = pd.read_csv(data)
     return df
 
-rad_stationID = 'nohur'
+#rad_stationID = 'nohur'
 # Base URL of the dataset
 #base_url = 'https://aloftdata.s3-eu-west-1.amazonaws.com/baltrad/daily/bejab/2018/bejab_vpts_'
 base_url = 'https://aloftdata.s3-eu-west-1.amazonaws.com/baltrad/daily/'
@@ -59,11 +82,28 @@ st.title('Interactive Heatmap Visualization')
     # Date selector
 d = datetime.today() - timedelta(days=3)
 crit_height = 200
+
+
 selected_date = st.date_input("Select a date (72h from current date)", d)
 year_sel = selected_date.year
 selected_date_str = selected_date.strftime('%Y%m%d')
 
-data_url = f'{base_url}{rad_stationID}/{year_sel}/{rad_stationID}_vpts_{selected_date_str}.csv'
+data_url = f'{base_url}{radar_stat}/{year_sel}/{radar_stat}_vpts_{selected_date_str}.csv'
+
+
+### sunrise and sunset time for plots
+# Get the sunrise and sunset times for the specified date and observer
+sun_times = sun(observer, date=selected_date)
+
+# Extract sunrise and sunset times
+sunrise = sun_times['sunrise'].strftime('%Y-%m-%d %H:%M:%S')
+sunset = sun_times['sunset'].strftime('%Y-%m-%d %H:%M:%S')
+
+# Print the results
+#print(f"Sunrise: {sunrise}")
+#print(f"Sunset: {sunset}")
+rad_el = filtered_df['elevation'].iloc[0] 
+rad_el = int(rad_el)
 
 # Load data
 st.write(f"Loading data from: {data_url}")
@@ -84,18 +124,18 @@ df1 = df[['datetime', 'height','dens']]
 df1 = pd.DataFrame(df1)
 
 glob_dens = df1['dens'].sum()
-print(glob_dens)
+#print(glob_dens)
 
 ## critical values in rotor swept area
-df_crit = df1[df1['height'].between(0, 400)]
-print(df_crit.dtypes)
+df_crit = df1[df1['height'].between(rad_el, rad_el+crit_height)]
+#print(df_crit.dtypes)
 crit_dens = df_crit['dens'].sum()
 performance_value=crit_dens/glob_dens
 
 # make a datetime index
 df1['datetime'] = pd.to_datetime(df1['datetime'])
-print(df1)
-print(df1.dtypes)
+#print(df1)
+#print(df1.dtypes)
 
 
 fig = go.Figure(data=go.Heatmap(
@@ -111,7 +151,7 @@ max_value = df1['dens'].max()
 max_index = df1['dens'].idxmax()
 max_time = df1['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')[max_index]
 max_dens_at_max_height = df1['height'][max_index]  
-print(max_dens_at_max_height)
+#print(max_dens_at_max_height)
 
 fig.add_annotation(
     x=df1['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')[max_index],
@@ -131,6 +171,41 @@ fig.add_shape(
     x0=df1['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')[max_index], x1=df1['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')[max_index],
     y0=0, y1=4800,  # y0 and y1 define the height range for the line
     line=dict(color="red", width=2, dash="dash")
+)
+
+
+# Draw vertical line for the sunrise
+fig.add_shape(
+    type="line",
+    x0=sunrise, x1=sunrise,
+    y0=4800, y1=5300,  # y0 and y1 define the height range for the line
+    line=dict(color="black", width=2)
+)
+
+# Draw vertical line for the sunset
+fig.add_shape(
+    type="line",
+    x0=sunset, x1=sunset,
+    y0=4800, y1=5300,  # y0 and y1 define the height range for the line
+    line=dict(color="black", width=2)
+)
+
+fig.add_annotation(
+    x=sunrise,  # Position at x=3 (same as the vertical line)
+    y=5350,  # Position above the plot (you can adjust this)
+    text="🌅",  # This can be any emoji or text
+    showarrow=False,
+    font=dict(size=20),
+    yshift=20  # Shifts the icon/text upwards
+)
+
+fig.add_annotation(
+    x=sunset,  # Position at x=3 (same as the vertical line)
+    y=5350,  # Position above the plot (you can adjust this)
+    text="🌙",  # This can be any emoji or text
+    showarrow=False,
+    font=dict(size=20),
+    yshift=20  # Shifts the icon/text upwards
 )
 
 # Draw horizontal line for dens at max height
