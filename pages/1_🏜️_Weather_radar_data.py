@@ -20,7 +20,7 @@ client = bigquery.Client(credentials=credentials)
 # Uses st.cache_data to only rerun when the query changes or after 10 min.
 
 
-sql = """SELECT * FROM `visavis-312202.wp4_dev.radar_sites` LIMIT 20"""
+sql = """SELECT * FROM `visavis-312202.wp4_dev.radar_sites` """
 df = client.query_and_wait(sql).to_dataframe()
 
 
@@ -35,7 +35,11 @@ def create_map(gdf):
 
     # Add points to the map
     for _, row in gdf.iterrows():
-        folium.Marker(location=[row.geometry.y, row.geometry.x]).add_to(m)
+        folium.Marker(location=[row.geometry.y, row.geometry.x],icon=folium.Icon(icon='cloud', color='blue')).add_to(m)
+        
+    bounds = gdf.total_bounds  # [minx, miny, maxx, maxy]
+    m.fit_bounds([[bounds[1], bounds[0]], [bounds[3], bounds[2]]])
+
 
     return m
 

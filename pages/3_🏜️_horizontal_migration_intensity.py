@@ -35,7 +35,7 @@ st.sidebar.info(
 
 
 
-st.title("Vertical profiles")
+st.title("Bird density distribution")
 st.markdown(
     """
 Visualizing vertical profiles from ENRAM radar. Test the connection to AWS.
@@ -57,7 +57,7 @@ sql = """SELECT radar, latitude, longitude, elevation FROM `visavis-312202.wp4_d
 df = client.query_and_wait(sql).to_dataframe()
 
 ## station selection
-radar_stat = st.selectbox("Select a radar",df.radar)
+radar_stat = st.selectbox("Select a radar station",df.radar)
 filtered_df = df[df['radar'] == radar_stat]
 observer = Observer(latitude=filtered_df.latitude, longitude=filtered_df.longitude, elevation=filtered_df.elevation)
 
@@ -74,9 +74,9 @@ def load_data(url):
 #base_url = 'https://aloftdata.s3-eu-west-1.amazonaws.com/baltrad/daily/bejab/2018/bejab_vpts_'
 base_url = 'https://aloftdata.s3-eu-west-1.amazonaws.com/baltrad/daily/'
 
+monthly_url = 'https://aloftdata.s3-eu-west-1.amazonaws.com/baltrad/monthly/'
 
-# Streamlit app
-st.title('Interactive Heatmap Visualization')
+
 
 # Date selection
     # Date selector
@@ -88,7 +88,20 @@ selected_date = st.date_input("Select a date (72h from current date)", d)
 year_sel = selected_date.year
 selected_date_str = selected_date.strftime('%Y%m%d')
 
+
+y1 = selected_date.replace(year=selected_date.year - 1)
+y1 = y1.strftime('%Y%m%d')
+
+y2 = selected_date.replace(year=selected_date.year - 2)
+y2 = y2.strftime('%Y%m%d')
+
+y3 = selected_date.replace(year=selected_date.year - 3)
+y3 = y3.strftime('%Y%m%d')
+
 data_url = f'{base_url}{radar_stat}/{year_sel}/{radar_stat}_vpts_{selected_date_str}.csv'
+url1 = f'{base_url}{radar_stat}/{year_sel-1}/{radar_stat}_vpts_{y1}.csv'
+url2 = f'{base_url}{radar_stat}/{year_sel-2}/{radar_stat}_vpts_{y2}.csv'
+url3 = f'{base_url}{radar_stat}/{year_sel-3}/{radar_stat}_vpts_{y3}.csv'
 
 
 ### sunrise and sunset time for plots
@@ -109,35 +122,95 @@ rad_el = int(rad_el)
 st.write(f"Loading data from: {data_url}")
 try:
     df = load_data(data_url)
+    dfY1 = load_data(url1)
+    dfY2 = load_data(url2)
+    dfY3 = load_data(url3)
     st.write("Data loaded successfully!")
 except Exception as e:
     st.error(f"Error loading data: {e}")
     st.stop()
 
 # Display the first few rows of the dataframe
-st.write("Data preview:")
-st.write(df.head())
+#st.write("Data preview:")
+#st.write(df.head())
 
 #df['DateStr'] = df['datetime'].strftime("%Y-%m-%dT%H:%M:%SZ")
 #new_df = df.pivot(index='height', columns='datetime')['dens'].fillna(0)
 df1 = df[['datetime', 'height','dens']]
 df1 = pd.DataFrame(df1)
+df1['datetime'] = pd.to_datetime(df1['datetime'], utc=True)
+df1['datetime_str'] = df1['datetime'].dt.strftime('%H:%M:%S')
+
+
+dfY1 = dfY1[['datetime', 'height','dens']]
+dfY2 = dfY2[['datetime', 'height','dens']]
+dfY3 = dfY3[['datetime', 'height','dens']]
+df_all = pd.concat([dfY1,dfY2,dfY3])
+df_all['datetime'] = pd.to_datetime(df_all['datetime'], utc=True)
+df_all['datetime_str'] = df_all['datetime'].dt.strftime('%H:%M:%S')
+
+# Group by 'datetime' and calculate the mean of 'dens'
+df_mean = df_all.groupby('datetime_str')['dens'].mean().reset_index()
+# mean of selected day
+df_mean_cur = df1.groupby('datetime_str')['dens'].mean().reset_index()
+
+# Subtitle
+st.subheader('Density - time current vs. previous years')
+
+fig = go.Figure()
+
+# Add the first line (blue)
+fig.add_trace(go.Scatter(
+    x=df_mean['datetime_str'],
+    y=df_mean['dens'],
+    mode='lines+markers',
+    name='Mean density 2021-2023',
+    line=dict(color='blue')
+))
+
+# Add the second line (red)
+fig.add_trace(go.Scatter(
+    x=df_mean_cur['datetime_str'],
+    y=df_mean_cur['dens'],
+    mode='lines+markers',
+    name= f'Density {selected_date_str}',
+    line=dict(color='red')
+))
+
+# Update layout
+fig.update_layout(
+    title='',
+    xaxis_title='Datetime',
+    yaxis_title='Density',
+    xaxis_tickformat='%H:%M:%S',
+    legend=dict(x=0, y=1, traceorder='normal'),
+    template='plotly_white'
+)
+
+# Display the Plotly figure in Streamlit
+st.plotly_chart(fig, use_container_width=True)
+
 
 glob_dens = df1['dens'].sum()
-#print(glob_dens)
+glob_dens_past = df_all['dens'].sum()
+print(glob_dens_past)
 
 ## critical values in rotor swept area
 df_crit = df1[df1['height'].between(rad_el, rad_el+crit_height)]
+df_crit_past = df_all[df_all['height'].between(rad_el, rad_el+crit_height)]
+crit_dens_past = df_crit_past['dens'].sum()
 #print(df_crit.dtypes)
 crit_dens = df_crit['dens'].sum()
 performance_value=crit_dens/glob_dens
+performance_value_past=crit_dens_past/glob_dens_past
 
 # make a datetime index
 df1['datetime'] = pd.to_datetime(df1['datetime'])
-#print(df1)
-#print(df1.dtypes)
+print(df_mean_cur)
 
 
+# Streamlit app
+st.subheader('Time-space density distribution')
 fig = go.Figure(data=go.Heatmap(
         z=df1['dens'],
         x=df1['datetime'],
@@ -221,7 +294,7 @@ fig.add_shape(
 
 # Update layout for better readability
 fig.update_layout(
-    title=f"Heatmap with highest bird density value of {max_value:.2f} at {max_time} flying at {max_dens_at_max_height} m above ground",
+    title=f"Highest bird density value of {max_value:.2f} at {max_time} flying at {max_dens_at_max_height} m above ground",
     xaxis_title="Date",
     yaxis_title="Height",
     height=600,
@@ -230,16 +303,18 @@ fig.update_layout(
     
 st.plotly_chart(fig)
 
-
+# Streamlit app
+st.subheader('Percentage of birds within potential rotor swept area during the whole day')
 # Normalize the performance value to a scale of 0-100
 max_value = 1  # Define your maximum value
 performance_percentage = (performance_value / max_value) * 100
+performance_percentage_past = (performance_value_past / max_value) * 100
 
 # Create a gauge chart using Plotly
 fig2 = go.Figure(go.Indicator(
     mode = "gauge+number",
     value = performance_percentage,
-    title = {'text': "Percentage of birds within potential rotor swept area during the whole day"},
+    title = {'text': "selected day"},
     gauge = {
         'axis': {'range': [0, 100]},
         'bar': {'color': "darkblue"},
@@ -254,6 +329,31 @@ fig2 = go.Figure(go.Indicator(
     }
 ))
 
+fig3 = go.Figure(go.Indicator(
+    mode = "gauge+number",
+    value = performance_percentage_past,
+    title = {'text': "Mean 2021-2023"},
+    gauge = {
+        'axis': {'range': [0, 100]},
+        'bar': {'color': "darkblue"},
+        'steps' : [
+            {'range': [0, 50], 'color': "lightgray"},
+            {'range': [50, 100], 'color': "gray"}
+        ],
+        'threshold' : {
+            'line': {'color': "red", 'width': 4},
+            'thickness': 0.75,
+            'value': performance_percentage_past}
+    }
+))
+
+col1, col2 = st.columns(2)
 # Display the gauge chart in Streamlit
-st.plotly_chart(fig2)
+# Display the first gauge in the first column
+with col1:
+    st.plotly_chart(fig2, use_container_width=True)
+
+# Display the second gauge in the second column
+with col2:
+    st.plotly_chart(fig3, use_container_width=True)
 

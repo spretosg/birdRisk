@@ -143,6 +143,6 @@ cesium_html = """
 """
 
 # Use Streamlit to display the HTML content
-st.title("Local bird behaviour")
-st.write("Test to use Cesium 3D globe and NINA bird radar DB")
+st.title("Local flight behaviour")
+st.write("Visualized flight track from bird radar at Lista with Cesium 3D globe.")
 st.components.v1.html(cesium_html, height=600)
