@@ -7,6 +7,10 @@ from shapely.geometry import Polygon, Point
 import h3
 import pydeck as pdk
 import json
+import plotly.express as px
+
+
+st.set_page_config(layout="wide")
 
 # Bounding box coordinates for a region in Norway (replace with actual subregion coordinates)
 species_options = [
@@ -30,7 +34,6 @@ def get_gbif_data(species, year=None):
         "scientificName": species,
         "hasCoordinate": "true",  # Only include records with coordinates
         "publishingCountry": "NO",  # Filter by publishing country (example: NO for Norway)
-        "institutionCode": "nof",   # Filter by institution code (example: nof)
         "limit": limit,             # Number of records to retrieve per request
         "offset": offset            # Offset for pagination
     }
@@ -54,6 +57,14 @@ def get_gbif_data(species, year=None):
         else:
             st.error(f"Error fetching data from GBIF: {response.status_code}")
             break
+
+    # Look for media (images) in the occurrence records
+    for rec in all_records:
+        media = rec.get("media")
+        if media:
+            for item in media:
+                if item.get("type") == "StillImage":
+                    rec['image_url'] = item.get("identifier")  # Store the image URL
 
     return all_records
 
@@ -131,8 +142,8 @@ def hexagons_to_pydeck_geojson(hex_gdf):
     return geojson
 
 # Streamlit app layout
-st.title("Bird Observations with Hexagonal Grid")
-st.subheader("Based on Norwegian Species Observation Service")
+st.title("Observation data")
+
 
 # Sidebar input for species name
 species_options = [
@@ -155,7 +166,12 @@ if st.sidebar.button("Fetch Data"):
     if gbif_data:
         df = parse_gbif_data(gbif_data)
         if not df.empty:
-            st.write(f"Showing occurrences of *{species_input}* for the year {year_input}")
+            
+
+            # Check for images in the GBIF data
+            image_urls = [rec.get('image_url') for rec in gbif_data if rec.get('image_url')]
+
+
             
             # Create a hexagonal grid and aggregate occurrences using H3
             hex_grid = create_h3_grid(df, resolution=5)  # H3 resolution
@@ -163,17 +179,21 @@ if st.sidebar.button("Fetch Data"):
             # Convert hex grid to GeoJSON for pydeck
             hex_geojson = hexagons_to_pydeck_geojson(hex_grid)
             geojson_string = json.dumps(hex_geojson)
+            
 
             # Create a pydeck Layer for hexagons
             hex_layer = pdk.Layer(
                 "GeoJsonLayer",
                 hex_geojson,
-                opacity=0.6,
+                opacity=0.8,
                 stroked=True,
                 filled=True,
-                extruded=False,
-                get_fill_color=[34, 33, 33],
+                extruded=True,  # Enable extrusion for 3D hexagons
+                wireframe=True,  # Adds a wireframe outline to each hexagon
+                get_fill_color="[255 - properties.counts * 10, 100 + properties.counts * 5, 150]",  # Dynamic color based on counts
                 get_line_color=[255, 255, 255],
+                get_elevation="properties.counts * 100",  # Set height based on counts
+                elevation_scale=10,
                 pickable=True
             )
 
@@ -191,8 +211,8 @@ if st.sidebar.button("Fetch Data"):
             view_state = pdk.ViewState(
                 latitude=df['LAT'].mean(),
                 longitude=df['LON'].mean(),
-                zoom=6,
-                pitch=0
+                zoom=5,
+                pitch=45
             )
 
             # Render the map with both hexagons and points
@@ -203,12 +223,52 @@ if st.sidebar.button("Fetch Data"):
                 map_style=pdk.map_styles.LIGHT,
                 tooltip={"text": "Count: {counts}"},
             )
+            col1, col2 = st.columns([0.2,0.8])
+            if image_urls:
+                # Display the first available image
+                with col1:
+                    st.image(image_urls[0], caption=f"Showing occurrences of {species_input} for the year {year_input}, based on Norwegian Species Observation Service", width=200,use_column_width =True)
+                with col2:
+                    st.pydeck_chart(deck)
+            else:
+                with col1:
+                    st.write(f"No image available for {species_input}.")
+                with col2:
+                    st.pydeck_chart(deck)
 
             # Render the deck in Streamlit
-            st.pydeck_chart(deck)
+            
+            # Count occurrences per month
+            df['month'] = pd.to_datetime(df['date']).dt.month  # Extract month from eventDate
+            occurrences_per_month = df['month'].value_counts().sort_index()
 
-            # Display data table
-            st.write("Occurrences Data:", df)
+            # Create an interactive bar plot using plotly
+            month_labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            fig = px.bar(
+                occurrences_per_month,
+                x=occurrences_per_month.index,
+                y=occurrences_per_month.values,
+                labels={'x': 'Month', 'y': 'Number of Occurrences'},
+                title=f"Occurrences of {species_input} per Month in {year_input}",
+                text=occurrences_per_month.values  # Display the counts on the bars
+            )
 
+            # Update the x-axis to show month names
+            fig.update_layout(
+                xaxis=dict(
+                    tickmode='array',
+                    tickvals=list(range(1, 13)),
+                    ticktext=month_labels
+                ),
+                yaxis_title="Number of Occurrences",
+                xaxis_title="Month",
+                title_x=0.5,  # Center the title
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)'
+            )
+
+            # Show the interactive plot in Streamlit
+            st.plotly_chart(fig, use_container_width=True)
         else:
             st.error("No valid data to display on the map.")

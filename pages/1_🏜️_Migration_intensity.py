@@ -1,18 +1,19 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objs as go
 import requests
 from io import StringIO
 from datetime import datetime, timedelta
-import plotly.graph_objs as go
-import numpy as np
 from google.oauth2 import service_account
 from google.cloud import bigquery
 from astral.sun import sun
 from astral import Observer
+import numpy as np
+import geopy
+from geopy.distance import geodesic
 
-
-
+# Set up Streamlit page
 st.set_page_config(layout="wide")
 
 st.sidebar.info(
@@ -32,6 +33,8 @@ st.sidebar.info(
     """
 )
 
+np.random.seed(42)  # For consistent randomization
+
 
 
 
@@ -41,6 +44,14 @@ st.markdown(
 Visualizing vertical profiles from ENRAM radar. Test the connection to AWS.
 """
 )
+
+# Date selection
+    # Date selector
+d = datetime.today() - timedelta(days=3)
+crit_height = 200
+
+
+selected_date = st.date_input("Select a date (72h from current date)", d)
 
 
 # Create API client.
@@ -53,8 +64,98 @@ client = bigquery.Client(credentials=credentials)
 # Uses st.cache_data to only rerun when the query changes or after 10 min.
 
 
+# Fetch radar station data from BigQuery
 sql = """SELECT radar, latitude, longitude, elevation FROM `visavis-312202.wp4_dev.radar_sites` LIMIT 20"""
-df = client.query_and_wait(sql).to_dataframe()
+df = client.query(sql).to_dataframe()
+
+df['wind_speed'] = np.random.uniform(5, 25, size=len(df))  # Wind speed in m/s
+df['wind_dir'] = np.random.uniform(0, 360, size=len(df))    # Wind direction in degrees
+df['bird_dir'] = np.random.uniform(0, 360, size=len(df))    # Bird mean direction in degrees
+
+# Calculate u, v components for wind and bird direction to draw arrows
+df['wind_u'] = df['wind_speed'] * np.cos(np.radians(df['wind_dir']))
+df['wind_v'] = df['wind_speed'] * np.sin(np.radians(df['wind_dir']))
+df['bird_u'] = 10 * np.cos(np.radians(df['bird_dir']))  # Fixed scaling for bird direction
+df['bird_v'] = 10 * np.sin(np.radians(df['bird_dir']))  # Fixed scaling for bird direction
+
+# Add a map to the app to display radar locations
+# Function to calculate points of a circle given center and radius
+def calculate_circle_points(lat, lon, radius_km, num_points=100):
+    """ Returns the latitude and longitude points of a circle around a central point. """
+    angles = np.linspace(0, 360, num_points)
+    circle_points = []
+    
+    for angle in angles:
+        # Calculate destination points from center at each angle
+        destination = geodesic(kilometers=radius_km).destination((lat, lon), angle)
+        circle_points.append((destination.latitude, destination.longitude))
+    
+    return pd.DataFrame(circle_points, columns=['latitude', 'longitude'])
+
+# Generate a random "density" value for each radar to use for the color ramp (can be replaced by real data)
+df['density_value'] = np.random.uniform(0, 1, size=len(df))  # Values between 0 (green) and 1 (red)
+
+
+# Create a map plot using Plotly
+fig = px.scatter_mapbox(df,
+                        lat='latitude',
+                        lon='longitude',
+                        hover_name='radar',
+                        hover_data={'latitude': False, 'longitude': False, 'wind_speed': True, 'wind_dir': True, 'bird_dir': True},
+                        zoom=3,
+                        height=500)
+
+# Add wind direction and bird direction as arrows on the map
+for i, row in df.iterrows():
+
+    
+    # Add 50 km radius circle around each radar
+    circle_points = calculate_circle_points(row['latitude'], row['longitude'], radius_km=50)
+    # Use the density value to determine the color of the circle (green to red)
+    color_scale = px.colors.sequential.Greens  # Greenish color scale
+    color_index = int(row['density_value'] * (len(color_scale) - 1))  # Map density value to color scale index
+    circle_color = color_scale[color_index]
+    fig.add_trace(go.Scattermapbox(
+        mode='lines',
+        lon=circle_points['longitude'],
+        lat=circle_points['latitude'],
+        fill='toself',
+        fillcolor=circle_color,
+        line=dict(width=2, color=circle_color),
+        showlegend=False
+    ))
+    # Wind direction arrow (scaled with wind speed)
+    fig.add_trace(go.Scattermapbox(
+        mode="markers+lines",
+        lon=[row['longitude'], row['longitude'] + 0.1 * row['wind_u']],  # Scale the arrow by a factor for visibility
+        lat=[row['latitude'], row['latitude'] + 0.1 * row['wind_v']],
+        marker={'size': 10, 'symbol': "arrow-bar", 'angle': row['wind_dir']},
+        line=dict(width=2, color='blue'),
+        showlegend=False,  # Remove from legend
+        name=f"Wind: {row['wind_speed']:.1f} m/s, {row['wind_dir']:.1f}°"
+    ))
+
+    # Bird mean direction arrow (fixed scaling)
+    fig.add_trace(go.Scattermapbox(
+        mode="markers+lines",
+        lon=[row['longitude'], row['longitude'] + 0.05 * row['bird_u']],  # Scale the arrow by a smaller factor
+        lat=[row['latitude'], row['latitude'] + 0.05 * row['bird_v']],
+        marker={'size': 10, 'symbol': "arrow-bar", 'angle': row['bird_dir']},
+        line=dict(width=2, color='red'),
+        name=f"Bird: {row['bird_dir']:.1f}°",
+        showlegend=False  # Remove from legend
+
+    ))
+
+
+# Plot the density grid for all radars as a scatter plot with color scale
+
+# Configure map layout
+fig.update_layout(mapbox_style="open-street-map")
+fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+
+# Display the map in Streamlit
+selected_radar = st.plotly_chart(fig, use_container_width=True)
 
 ## station selection
 radar_stat = st.selectbox("Select a radar station",df.radar)
@@ -78,13 +179,7 @@ monthly_url = 'https://aloftdata.s3-eu-west-1.amazonaws.com/baltrad/monthly/'
 
 
 
-# Date selection
-    # Date selector
-d = datetime.today() - timedelta(days=3)
-crit_height = 200
 
-
-selected_date = st.date_input("Select a date (72h from current date)", d)
 year_sel = selected_date.year
 selected_date_str = selected_date.strftime('%Y%m%d')
 
@@ -155,12 +250,13 @@ df_mean = df_all.groupby('datetime_str')['dens'].mean().reset_index()
 df_mean_cur = df1.groupby('datetime_str')['dens'].mean().reset_index()
 
 # Subtitle
-st.subheader('Density - time current vs. previous years')
+month_day = selected_date.strftime('%m-%d')
+st.subheader(f' {radar_stat} / {month_day}')
 
-fig = go.Figure()
+fig0 = go.Figure()
 
 # Add the first line (blue)
-fig.add_trace(go.Scatter(
+fig0.add_trace(go.Scatter(
     x=df_mean['datetime_str'],
     y=df_mean['dens'],
     mode='lines+markers',
@@ -169,26 +265,30 @@ fig.add_trace(go.Scatter(
 ))
 
 # Add the second line (red)
-fig.add_trace(go.Scatter(
+fig0.add_trace(go.Scatter(
     x=df_mean_cur['datetime_str'],
     y=df_mean_cur['dens'],
     mode='lines+markers',
-    name= f'Density {selected_date_str}',
+    name= f'Density 2024',
     line=dict(color='red')
 ))
 
 # Update layout
-fig.update_layout(
+fig0.update_layout(
     title='',
     xaxis_title='Datetime',
     yaxis_title='Density',
     xaxis_tickformat='%H:%M:%S',
     legend=dict(x=0, y=1, traceorder='normal'),
-    template='plotly_white'
+    template='plotly_white',
+    height=600,
+    width=1200
 )
 
+
+
 # Display the Plotly figure in Streamlit
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig0, use_container_width=True)
 
 
 glob_dens = df1['dens'].sum()
@@ -206,11 +306,11 @@ performance_value_past=crit_dens_past/glob_dens_past
 
 # make a datetime index
 df1['datetime'] = pd.to_datetime(df1['datetime'])
-print(df_mean_cur)
+#print(df_mean_cur)
 
 
 # Streamlit app
-st.subheader('Time-space density distribution')
+st.subheader(f'Height distribution at the {selected_date}')
 fig = go.Figure(data=go.Heatmap(
         z=df1['dens'],
         x=df1['datetime'],
@@ -223,6 +323,7 @@ fig = go.Figure(data=go.Heatmap(
 max_value = df1['dens'].max()
 max_index = df1['dens'].idxmax()
 max_time = df1['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')[max_index]
+max_h = df1['datetime'].dt.strftime('%H:%M:%S')[max_index]
 max_dens_at_max_height = df1['height'][max_index]  
 #print(max_dens_at_max_height)
 
@@ -294,14 +395,14 @@ fig.add_shape(
 
 # Update layout for better readability
 fig.update_layout(
-    title=f"Highest bird density value of {max_value:.2f} at {max_time} flying at {max_dens_at_max_height} m above ground",
+    title=f"Highest bird density value of {max_value:.2f} at {max_h} flying at {max_dens_at_max_height} m above ground",
     xaxis_title="Date",
     yaxis_title="Height",
     height=600,
     width=1200
 )
     
-st.plotly_chart(fig)
+st.plotly_chart(fig,use_container_width=True)
 
 # Streamlit app
 st.subheader('Percentage of birds within potential rotor swept area during the whole day')
