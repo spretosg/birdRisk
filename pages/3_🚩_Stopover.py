@@ -227,7 +227,7 @@ if st.sidebar.button("Fetch Data"):
             if image_urls:
                 # Display the first available image
                 with col1:
-                    st.image(image_urls[0], caption=f"Showing occurrences of {species_input} for the year {year_input}, based on Norwegian Species Observation Service", width=200,use_column_width =True)
+                    st.image(image_urls[0], caption=f"Showing occurrences of {species_input} for the year {year_input}, based on Norwegian Species Observation Service. (Image from GBIF)", width=200,use_column_width =True)
                 with col2:
                     st.pydeck_chart(deck)
             else:
@@ -249,8 +249,8 @@ if st.sidebar.button("Fetch Data"):
                 occurrences_per_month,
                 x=occurrences_per_month.index,
                 y=occurrences_per_month.values,
-                labels={'x': 'Month', 'y': 'Number of Occurrences'},
-                title=f"Occurrences of {species_input} per Month in {year_input}",
+                labels={'x': 'Month', 'y': 'Number of occurrences'},
+                title=f"Occurrences of {species_input} per month in {year_input}",
                 text=occurrences_per_month.values  # Display the counts on the bars
             )
 
